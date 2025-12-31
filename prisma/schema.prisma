@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN_BK
+  TEACHER
+}
+
+enum CampusType {
+  PTN
+  PTKIN
+  POLTEK
+  KEDINASAN
+}
+
+enum DataStatus {
+  DRAFT
+  VERIFIED
+  FINAL
+}
+
+enum RebuttalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model AppConfig {
+  id                   Int       @id @default(autoincrement())
+  verificationDeadline DateTime
+  quotaPercentage      Int       @default(40)
+  announcementDate     DateTime?
+  isActive             Boolean   @default(true)
+  updatedAt            DateTime  @updatedAt
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  name      String
+  email     String     @unique
+  password  String
+  role      Role       @default(ADMIN_BK)
+  logs      AuditLog[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Major {
+  id               Int               @id @default(autoincrement())
+  name             String
+  quotaPercentage  Int               @default(40)
+  totalStudents    Int               @default(0)
+  quotaCount       Int               @default(0)
+  students         Student[]
+  rankingSnapshots RankingSnapshot[]
+}
+
+model ExportJob {
+  id        Int      @id @default(autoincrement())
+  type      String
+  params    Json?
+  status    String   @default("PENDING")
+  fileUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RankingSnapshot {
+  id        Int      @id @default(autoincrement())
+  majorId   Int
+  major     Major    @relation(fields: [majorId], references: [id])
+  snapshot  Json
+  createdAt DateTime @default(now())
+}
+
+model Student {
+  id         Int      @id @default(autoincrement())
+  nisn       String   @unique
+  name       String
+  birthDate  DateTime
+  kipKStatus Boolean  @default(false)
+
+  majorId Int
+  major   Major @relation(fields: [majorId], references: [id])
+
+  dataStatus   DataStatus @default(DRAFT)
+  isEligible   Boolean    @default(false)
+  ranking      Int?
+  averageScore Float      @default(0)
+
+  choice1Uni   String?
+  choice1Prodi String?
+  choice1Type  CampusType?
+
+  choice2Uni   String?
+  choice2Prodi String?
+  choice2Type  CampusType?
+
+  finalStatus   String?
+  acceptedProof String?
+
+  grades    Grade[]
+  rebuttals Rebuttal[]
+  logs      AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Subject {
+  id           Int     @id @default(autoincrement())
+  name         String
+  isVocational Boolean @default(false)
+  isPriority   Boolean @default(false)
+  grades       Grade[]
+}
+
+model Grade {
+  id       Int   @id @default(autoincrement())
+  score    Float
+  semester Int
+
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId Int
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([studentId, subjectId, semester])
+}
+
+model Rebuttal {
+  id           Int    @id @default(autoincrement())
+  description  String
+  proofUrl     String
+  claimedScore Float?
+
+  status    RebuttalStatus @default(PENDING)
+  adminNote String?
+
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        Int     @id @default(autoincrement())
+  action    String
+  details   String?
+  ipAddress String?
+  userAgent String?
+
+  adminId Int?
+  admin   User? @relation(fields: [adminId], references: [id])
+
+  studentId Int?
+  student   Student? @relation(fields: [studentId], references: [id])
+
+  createdAt DateTime @default(now())
+}

@@ -1,0 +1,7 @@
+{
+    "prisma.pinToPrisma6": true,
+    "github.copilot.nextEditSuggestions.enabled": true,
+    "terminal.integrated.accessibleViewFocusOnCommandExecution": true,
+    "terminal.integrated.accessibleViewPreserveCursorPosition": true,
+    "problems.showCurrentInStatus": true
+}
