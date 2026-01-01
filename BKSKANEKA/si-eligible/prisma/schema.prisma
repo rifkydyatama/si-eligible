@@ -1,0 +1,264 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Siswa {
+  id           String       @id @default(cuid())
+  nisn         String       @unique
+  nama         String
+  tanggalLahir DateTime
+  kelas        String
+  jurusan      String
+  email        String?
+  noTelepon    String?
+  statusKIPK   Boolean      @default(false)
+  isDataLocked Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  kelulusan    Kelulusan?
+  nilaiRapor   NilaiRapor[]
+  peminatan    Peminatan[]
+  sanggahan    Sanggahan[]
+
+  @@index([nisn])
+  @@index([kelas, jurusan])
+}
+
+model Peminatan {
+  id        String        @id @default(cuid())
+  siswaId   String
+  pilihan   Int
+  kampusId  String
+  jurusanId String
+  jalur     String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  jurusan   MasterJurusan @relation(fields: [jurusanId], references: [id])
+  kampus    MasterKampus  @relation(fields: [kampusId], references: [id])
+  siswa     Siswa         @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@unique([siswaId, pilihan])
+  @@index([siswaId])
+  @@index([jurusanId], map: "Peminatan_jurusanId_fkey")
+  @@index([kampusId], map: "Peminatan_kampusId_fkey")
+}
+
+model Sanggahan {
+  id            String    @id @default(cuid())
+  siswaId       String
+  semester      Int
+  mataPelajaran String
+  nilaiLama     Float
+  nilaiBaru     Float
+  buktiRapor    String
+  status        String    @default("pending")
+  keterangan    String?   @db.Text
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  siswa         Siswa     @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@index([siswaId])
+  @@index([status])
+}
+
+model Kelulusan {
+  id              String        @id @default(cuid())
+  siswaId         String        @unique
+  status          String
+  kampusId        String
+  jurusanId       String
+  jalur           String
+  buktiPenerimaan String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  jurusan         MasterJurusan @relation(fields: [jurusanId], references: [id])
+  kampus          MasterKampus  @relation(fields: [kampusId], references: [id])
+  siswa           Siswa         @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@index([jurusanId], map: "Kelulusan_jurusanId_fkey")
+  @@index([kampusId], map: "Kelulusan_kampusId_fkey")
+}
+
+model NilaiRapor {
+  id            String   @id @default(cuid())
+  siswaId       String
+  semester      Int
+  mataPelajaran String
+  nilai         Float
+  isVerified    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  siswa         Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@unique([siswaId, semester, mataPelajaran], name: "siswaId_semester_mataPelajaran")
+  @@index([siswaId])
+  @@index([semester])
+}
+
+model TahunAkademik {
+  id               String             @id @default(cuid())
+  tahun            String             @unique
+  isActive         Boolean            @default(false)
+  tanggalMulai     DateTime
+  tanggalSelesai   DateTime
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  konfigurasiKuota KonfigurasiKuota[]
+  konfigurasiNilai KonfigurasiNilai[]
+  periodeJalur     PeriodeJalur[]
+
+  @@index([isActive])
+}
+
+model PeriodeJalur {
+  id                      String        @id @default(cuid())
+  tahunAkademikId         String
+  jalur                   String
+  namaJalur               String
+  isActive                Boolean       @default(true)
+  tanggalBukaPendaftaran  DateTime
+  tanggalTutupPendaftaran DateTime
+  tanggalPengumuman       DateTime
+  kuotaNasional           Int?
+  minimalRataRata         Float?
+  deskripsi               String?       @db.Text
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  tahunAkademik           TahunAkademik @relation(fields: [tahunAkademikId], references: [id], onDelete: Cascade)
+
+  @@index([tahunAkademikId])
+  @@index([jalur, isActive])
+}
+
+model KonfigurasiNilai {
+  id                     String        @id @default(cuid())
+  tahunAkademikId        String
+  kurikulum              String
+  jalur                  String
+  bobotSemester1         Float         @default(0)
+  bobotSemester2         Float         @default(0)
+  bobotSemester3         Float         @default(0)
+  bobotSemester4         Float         @default(0)
+  bobotSemester5         Float         @default(0)
+  mataPelajaranWajib     Json
+  mataPelajaranPeminatan Json
+  formulaPerhitungan     String
+  customFormula          String?       @db.Text
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  tahunAkademik          TahunAkademik @relation(fields: [tahunAkademikId], references: [id], onDelete: Cascade)
+
+  @@unique([tahunAkademikId, kurikulum, jalur])
+  @@index([tahunAkademikId])
+}
+
+model KonfigurasiKuota {
+  id                 String        @id @default(cuid())
+  tahunAkademikId    String
+  jalur              String
+  jurusan            String
+  persenKuotaSekolah Float
+  jumlahKuotaSekolah Int?
+  minimalRataRata    Float?
+  maksimalSanggahan  Int?
+  wajibKIPK          Boolean       @default(false)
+  metodePeRankingan  String
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  tahunAkademik      TahunAkademik @relation(fields: [tahunAkademikId], references: [id], onDelete: Cascade)
+
+  @@index([tahunAkademikId])
+}
+
+model MasterKampus {
+  id            String          @id @default(cuid())
+  kodeKampus    String          @unique
+  namaKampus    String
+  jenisKampus   String
+  kategoriJalur String
+  akreditasi    String?
+  provinsi      String
+  kota          String
+  website       String?
+  logoUrl       String?
+  isActive      Boolean         @default(true)
+  tahunUpdate   String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  kelulusan     Kelulusan[]
+  jurusan       MasterJurusan[]
+  peminatan     Peminatan[]
+
+  @@index([jenisKampus])
+  @@index([kategoriJalur])
+}
+
+model MasterJurusan {
+  id          String       @id @default(cuid())
+  kampusId    String
+  kodeJurusan String
+  namaJurusan String
+  jenjang     String
+  fakultas    String
+  akreditasi  String?
+  deskripsi   String?      @db.Text
+  isActive    Boolean      @default(true)
+  tahunUpdate String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  kelulusan   Kelulusan[]
+  kampus      MasterKampus @relation(fields: [kampusId], references: [id], onDelete: Cascade)
+  peminatan   Peminatan[]
+
+  @@unique([kampusId, kodeJurusan])
+  @@index([kampusId])
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  nama      String
+  email     String?
+  role      String   @default("admin")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  userType    String
+  action      String
+  description String   @db.Text
+  ipAddress   String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model TemplateExport {
+  id              String   @id @default(cuid())
+  tahunAkademikId String?
+  namaTemplate    String
+  jalur           String
+  jenisExport     String
+  mappingKolom    Json
+  formatKolom     Json
+  headerTemplate  String?  @db.Text
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([jalur])
+}
